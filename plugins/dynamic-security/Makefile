@@ -5,6 +5,10 @@ include ../../config.mk
 PLUGIN_NAME=mosquitto_dynamic_security
 LOCAL_CPPFLAGS=-I../../src/ -DWITH_CJSON
 
+ifeq ($(WITH_LUA),yes)
+LOCAL_CPPFLAGS += -DWITH_LUA
+endif
+
 OBJS=	\
 		acl.o \
 		auth.o \
@@ -32,7 +36,7 @@ all : ${ALL_DEPS}
 binary : ${PLUGIN_NAME}.so
 
 ${PLUGIN_NAME}.so : ${OBJS}
-	${CROSS_COMPILE}${CC} $(PLUGIN_LDFLAGS) -fPIC -shared $^ -o $@ -lcjson
+	${CROSS_COMPILE}${CC} $(PLUGIN_LDFLAGS) -fPIC -shared $^ -o $@ -lcjson -llua5.1
 
 acl.o : acl.c dynamic_security.h
 	${CROSS_COMPILE}${CC} $(LOCAL_CPPFLAGS) $(PLUGIN_CPPFLAGS) $(PLUGIN_CFLAGS) -c $< -o $@

@@ -23,6 +23,12 @@ Contributors:
 #include "mosquitto.h"
 #include "password_mosq.h"
 
+#ifdef WITH_LUA
+#include <lua5.1/lua.h>
+#include <lua5.1/lualib.h>
+#include <lua5.1/lauxlib.h>
+#endif
+
 /* ################################################################
  * #
  * # ACL types
