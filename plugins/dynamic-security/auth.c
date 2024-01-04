@@ -200,12 +200,16 @@ int dynsec_auth__basic_auth_callback(int event, void *event_data, void *userdata
 				lua_pushvalue((lua_State*) userdata,-1);
 				
 				lua_newtable((lua_State*) userdata);
-				
+
 				lua_pushnumber((lua_State*) userdata, 0);
-				lua_pushstring((lua_State*) userdata, "CONNECT");
+				lua_pushstring((lua_State*) userdata, "mosquitto");
 				lua_settable((lua_State*) userdata, -3);
 				
 				lua_pushnumber((lua_State*) userdata, 1);
+				lua_pushstring((lua_State*) userdata, "CONNECTED");
+				lua_settable((lua_State*) userdata, -3);
+				
+				lua_pushnumber((lua_State*) userdata, 2);
 				lua_pushstring((lua_State*) userdata, cid);
 				lua_settable((lua_State*) userdata, -3);
 				

@@ -9,6 +9,12 @@ ifeq ($(WITH_LUA),yes)
 LOCAL_CPPFLAGS += -DWITH_LUA
 endif
 
+LOCAL_LIBS=-lcjson
+
+ifeq ($(WITH_LUA),yes)
+LOCAL_LIBS += -llua5.1
+endif 
+
 OBJS=	\
 		acl.o \
 		auth.o \
@@ -36,7 +42,7 @@ all : ${ALL_DEPS}
 binary : ${PLUGIN_NAME}.so
 
 ${PLUGIN_NAME}.so : ${OBJS}
-	${CROSS_COMPILE}${CC} $(PLUGIN_LDFLAGS) -fPIC -shared $^ -o $@ -lcjson -llua5.1
+	${CROSS_COMPILE}${CC} $(PLUGIN_LDFLAGS) -fPIC -shared $^ -o $@ $(LOCAL_LIBS)
 
 acl.o : acl.c dynamic_security.h
 	${CROSS_COMPILE}${CC} $(LOCAL_CPPFLAGS) $(PLUGIN_CPPFLAGS) $(PLUGIN_CFLAGS) -c $< -o $@

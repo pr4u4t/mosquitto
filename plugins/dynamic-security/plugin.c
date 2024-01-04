@@ -340,10 +340,14 @@ static int dynsec__disconnect_callback(int event, void *event_data, void *userda
 	lua_newtable((lua_State*) userdata);
 	
 	lua_pushnumber((lua_State*) userdata, 0);
-	lua_pushstring((lua_State*) userdata, "DISCONNECT");
+	lua_pushstring((lua_State*) userdata, "mosquitto");
 	lua_settable((lua_State*) userdata, -3);
 	
 	lua_pushnumber((lua_State*) userdata, 1);
+	lua_pushstring((lua_State*) userdata, "DISCONNECTED");
+	lua_settable((lua_State*) userdata, -3);
+	
+	lua_pushnumber((lua_State*) userdata, 2);
 	lua_pushstring((lua_State*) userdata, cid);
 	lua_settable((lua_State*) userdata, -3);
 	
@@ -729,9 +733,15 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 	udata = L;
 	
 	lua_newtable(L);
+
 	lua_pushnumber(L, 0);
+	lua_pushstring(L, "mosquitto");
+	lua_settable(L, -3);
+	
+	lua_pushnumber(L, 1);
 	lua_pushstring(L, "INIT");
 	lua_settable(L, -3);
+	
 	lua_setglobal(L, "arg");
 
 	if(luaL_loadfile(L, luaHandler) == 0){
@@ -809,9 +819,15 @@ int mosquitto_plugin_cleanup(void *user_data, struct mosquitto_opt *options, int
 
 #ifdef WITH_LUA
 	lua_newtable(L);
+	
 	lua_pushnumber(L, 0);
+	lua_pushstring(L, "mosquitto");
+	lua_settable(L, -3);
+	
+	lua_pushnumber(L, 1);
 	lua_pushstring(L, "CLEANUP");
 	lua_settable(L, -3);
+	
 	lua_setglobal(L, "arg");
 	
 	if(lua_pcall(L, 0, 1, 0) != 0){
