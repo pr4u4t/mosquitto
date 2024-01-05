@@ -42,8 +42,15 @@ static char *config_file = NULL;
 struct dynsec__acl_default_access default_access = {false, false, false, false};
  
 #ifdef WITH_LUA
-lua_State *L = 0;
-char* luaHandler;
+typedef struct
+{
+	lua_State *L;
+	char *handler;
+	char *path;
+	char *cpath;
+} dynsec__lua;
+
+dynsec__lua lua = {0};
 #endif
 
 #ifdef WIN32
@@ -335,7 +342,7 @@ static int dynsec__disconnect_callback(int event, void *event_data, void *userda
 	
 	const char *cid = mosquitto_client_id(ed->client);
 	mosquitto_log_printf(MOSQ_LOG_INFO, "Info: client: %s disconnected, lua state: %x.", cid, userdata);
-	lua_pushvalue(L,-1);
+	lua_pushvalue(userdata, -1);
 	
 	lua_newtable((lua_State*) userdata);
 	
@@ -517,7 +524,7 @@ int mosquitto_plugin_version(int supported_version_count, const int *supported_v
 static int dynsec__general_config_load(cJSON *tree)
 {
 	cJSON *j_default_access;
-	cJSON *lua_handler;
+	cJSON *j_lua;
 	
 	j_default_access = cJSON_GetObjectItem(tree, "defaultACLAccess");
 	if(j_default_access && cJSON_IsObject(j_default_access)){
@@ -528,10 +535,16 @@ static int dynsec__general_config_load(cJSON *tree)
 	}
 	
 #ifdef WITH_LUA
-	lua_handler = cJSON_GetObjectItem(tree, "lua");
-	if(lua_handler && cJSON_IsObject(lua_handler)){
-		json_get_string(lua_handler, "handler", &luaHandler, true);
-		luaHandler = mosquitto_strdup(luaHandler);
+	j_lua = cJSON_GetObjectItem(tree, "lua");
+	if(j_lua && cJSON_IsObject(j_lua)){
+		json_get_string(j_lua, "handler", &lua.handler, true);
+		lua.handler = mosquitto_strdup(lua.handler);
+		
+		json_get_string(j_lua, "path", &lua.path, true);
+		lua.path = mosquitto_strdup(lua.path);
+		
+		json_get_string(j_lua, "cpath", &lua.cpath, true);
+		lua.cpath = mosquitto_strdup(lua.cpath);
 	}
 #endif
 
@@ -703,7 +716,7 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 {
 	int i;
 	int rc;
-	void *udata = NULL;
+	void *udata = 0;
 	
 	UNUSED(user_data);
 	
@@ -726,35 +739,46 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 	dynsec__config_load();
 
 #ifdef WITH_LUA
-	L = luaL_newstate();
-	mosquitto_log_printf(MOSQ_LOG_DEBUG, "Info: lua state: %x.", L);
-	luaL_openlibs(L);
-	lua_register(L, "log", dynsec__lua_log);
-	udata = L;
-	
-	lua_newtable(L);
-
-	lua_pushnumber(L, 0);
-	lua_pushstring(L, "mosquitto");
-	lua_settable(L, -3);
-	
-	lua_pushnumber(L, 1);
-	lua_pushstring(L, "INIT");
-	lua_settable(L, -3);
-	
-	lua_setglobal(L, "arg");
-
-	if(luaL_loadfile(L, luaHandler) == 0){
+	if(lua.handler){
+		lua.L = luaL_newstate();
+		mosquitto_log_printf(MOSQ_LOG_DEBUG, "Debug: lua state: %x.", lua.L);
+		luaL_openlibs(lua.L);
+		lua_register(lua.L, "log", dynsec__lua_log);
 		
-		lua_pushvalue(L,-1);
-		if(lua_pcall(L, 0, 1, 0) != 0){
-			mosquitto_log_printf(MOSQ_LOG_ERR, "Error: lua pcall failed: %s.", lua_tostring(L,-1));
+		if(lua.path){
+			luaL_dostring(lua.L, lua.path);
 		}
-		lua_settop(L,1);
+		
+		if(lua.cpath){
+			luaL_dostring(lua.L, lua.cpath);
+		}
+		
+		lua_newtable(lua.L);
+
+		lua_pushnumber(lua.L, 0);
+		lua_pushstring(lua.L, "mosquitto");
+		lua_settable(lua.L, -3);
+		
+		lua_pushnumber(lua.L, 1);
+		lua_pushstring(lua.L, "INIT");
+		lua_settable(lua.L, -3);
+		
+		lua_setglobal(lua.L, "arg");
+
+		if(luaL_loadfile(lua.L, lua.handler) == 0){
+			lua_pushvalue(lua.L,-1);
+			if(lua_pcall(lua.L, 0, 1, 0) != 0){
+				mosquitto_log_printf(MOSQ_LOG_ERR, "Error: lua pcall failed: %s.", lua_tostring(lua.L,-1));
+			}
+			lua_settop(lua.L,1);
+		} else {
+			mosquitto_log_printf(MOSQ_LOG_ERR, "Error: Dynamic security plugin failed to load lua event handler: %s.", lua_tostring(lua.L,-1));
+		}
+		
+		udata = lua.L;
 	} else {
-		mosquitto_log_printf(MOSQ_LOG_ERR, "Error: Dynamic security plugin failed to load lua event handler: %s.", lua_tostring(L,-1));
+		mosquitto_log_printf(MOSQ_LOG_WARNING, "Warning: Dynamic security plugin Lua has no handler defined. The Lua handler will not be activated.");
 	}
-	
 #endif
 	
 	rc = mosquitto_callback_register(plg_id, MOSQ_EVT_CONTROL, dynsec_control_callback, "$CONTROL/dynamic-security/v1", NULL);
@@ -818,20 +842,20 @@ int mosquitto_plugin_cleanup(void *user_data, struct mosquitto_opt *options, int
 	UNUSED(option_count);
 
 #ifdef WITH_LUA
-	lua_newtable(L);
+	lua_newtable(lua.L);
 	
-	lua_pushnumber(L, 0);
-	lua_pushstring(L, "mosquitto");
-	lua_settable(L, -3);
+	lua_pushnumber(lua.L, 0);
+	lua_pushstring(lua.L, "mosquitto");
+	lua_settable(lua.L, -3);
 	
-	lua_pushnumber(L, 1);
-	lua_pushstring(L, "CLEANUP");
-	lua_settable(L, -3);
+	lua_pushnumber(lua.L, 1);
+	lua_pushstring(lua.L, "CLEANUP");
+	lua_settable(lua.L, -3);
 	
-	lua_setglobal(L, "arg");
+	lua_setglobal(lua.L, "arg");
 	
-	if(lua_pcall(L, 0, 1, 0) != 0){
-		mosquitto_log_printf(MOSQ_LOG_ERR, "Error: lua pcall failed: %s.", lua_tostring(L,-1));
+	if(lua_pcall(lua.L, 0, 1, 0) != 0){
+		mosquitto_log_printf(MOSQ_LOG_ERR, "Error: lua pcall failed: %s.", lua_tostring(lua.L,-1));
 	}
 #endif
 	
@@ -839,11 +863,27 @@ int mosquitto_plugin_cleanup(void *user_data, struct mosquitto_opt *options, int
 		mosquitto_callback_unregister(plg_id, MOSQ_EVT_CONTROL, dynsec_control_callback, "$CONTROL/dynamic-security/v1");
 		mosquitto_callback_unregister(plg_id, MOSQ_EVT_BASIC_AUTH, dynsec_auth__basic_auth_callback, NULL);
 		mosquitto_callback_unregister(plg_id, MOSQ_EVT_ACL_CHECK, dynsec__acl_check_callback, NULL);
+#ifdef WITH_LUA		
+		mosquitto_callback_unregister(plg_id, MOSQ_EVT_DISCONNECT, dynsec__disconnect_callback, NULL);
+#endif
 	}
 	dynsec_groups__cleanup();
 	dynsec_clients__cleanup();
 	dynsec_roles__cleanup();
 
+#ifdef WITH_LUA
+	lua_close(lua.L);
+	if(lua.handler){
+		free(lua.handler);
+	}
+	if(lua.path){
+		free(lua.path);
+	}
+	if(lua.cpath){
+		free(lua.cpath);
+	}
+#endif
+	
 	mosquitto_free(config_file);
 	config_file = NULL;
 	return MOSQ_ERR_SUCCESS;
