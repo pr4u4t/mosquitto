@@ -735,7 +735,7 @@ static int dynsec__lua_init(dynsec__lua* lua_conf){
 		return MOSQ_ERR_UNKNOWN;
 	} else {
 		if(lua_isboolean(lua_conf->L, -1) == 1){
-			lua_Integer ret_val = luaL_checkinteger(lua_conf->L, -1);
+			lua_Integer ret_val = lua_toboolean(lua_conf->L, -1);
 			mosquitto_log_printf(MOSQ_LOG_DEBUG, "Debug: init Lua handler returned: %d.", ret_val);
 		}else{
 			mosquitto_log_printf(MOSQ_LOG_DEBUG, "Debug: init lua_pcall invalid return type");
@@ -783,7 +783,7 @@ static int dynsec__disconnect_callback(int event, void *event_data, void *userda
 		mosquitto_log_printf(MOSQ_LOG_DEBUG, "Debug: disconnect lua_pcall failed: %s.", lua_tostring((lua_State*) userdata,-1));
 	} else {
 		if(lua_isboolean((lua_State*) userdata, -1) == 1){
-			lua_Integer ret_val = luaL_checkinteger((lua_State*) userdata, -1);
+			lua_Integer ret_val = lua_toboolean((lua_State*) userdata, -1);
 			mosquitto_log_printf(MOSQ_LOG_DEBUG, "Debug: disconnect Lua handler returned: %d.", ret_val);
 		}else{
 			mosquitto_log_printf(MOSQ_LOG_DEBUG, "Debug: disconnect lua_pcall invalid return type");
@@ -819,7 +819,7 @@ static int dynsec__lua_cleanup(dynsec__lua* lua_conf){
 			mosquitto_log_printf(MOSQ_LOG_DEBUG, "Debug: cleanup lua_pcall failed: %s.", lua_tostring(lua_conf->L,-1));
 		} else {
 			if(lua_isboolean(lua_conf->L, -1) == 1){
-				lua_Integer ret_val = luaL_checkinteger(lua_conf->L, -1);
+				lua_Integer ret_val = lua_toboolean(lua_conf->L, -1);
 				mosquitto_log_printf(MOSQ_LOG_DEBUG, "Debug: cleanup Lua handler returned: %d.", ret_val);
 			}else{
 				mosquitto_log_printf(MOSQ_LOG_DEBUG, "Debug: cleanup lua_pcall invalid return type");

@@ -229,7 +229,7 @@ int dynsec_auth__basic_auth_callback(int event, void *event_data, void *userdata
 						return MOSQ_ERR_UNKNOWN;
 					} else {
 						if(lua_isboolean((lua_State*) userdata, -1) == 1){
-							lua_Integer ret_val = luaL_checkinteger((lua_State*) userdata, -1);
+							lua_Integer ret_val = lua_toboolean((lua_State*) userdata, -1);
 							mosquitto_log_printf(MOSQ_LOG_DEBUG, "Debug: auth Lua handler returned: %d.", ret_val);
 						}else{
 							mosquitto_log_printf(MOSQ_LOG_DEBUG, "Debug: auth lua_pcall invalid return type");
