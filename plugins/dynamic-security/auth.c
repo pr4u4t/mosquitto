@@ -195,32 +195,49 @@ int dynsec_auth__basic_auth_callback(int event, void *event_data, void *userdata
 		if(client->pw.valid && dynsec_auth__pw_hash(client, ed->password, password_hash, sizeof(password_hash), false) == MOSQ_ERR_SUCCESS){
 			if(memcmp_const(client->pw.password_hash, password_hash, sizeof(password_hash)) == 0){
 #ifdef WITH_LUA
-				const char *cid = mosquitto_client_id(ed->client);
-				mosquitto_log_printf(MOSQ_LOG_INFO, "Info: client: %s connected, lua state: %x.", cid, userdata);
-				lua_pushvalue((lua_State*) userdata,-1);
-				
-				lua_newtable((lua_State*) userdata);
+				if(userdata != NULL){
+					lua_settop((lua_State*) userdata,1);
+					lua_pushvalue((lua_State*) userdata, -1);
 
-				lua_pushnumber((lua_State*) userdata, 0);
-				lua_pushstring((lua_State*) userdata, "mosquitto");
-				lua_settable((lua_State*) userdata, -3);
-				
-				lua_pushnumber((lua_State*) userdata, 1);
-				lua_pushstring((lua_State*) userdata, "CONNECTED");
-				lua_settable((lua_State*) userdata, -3);
-				
-				lua_pushnumber((lua_State*) userdata, 2);
-				lua_pushstring((lua_State*) userdata, cid);
-				lua_settable((lua_State*) userdata, -3);
-				
-				lua_setglobal((lua_State*) userdata, "arg");
-				
-				if(lua_pcall((lua_State*) userdata, 0, 0, 0) != 0){
-					mosquitto_log_printf(MOSQ_LOG_ERR, "Error: lua pcall failed: %s.", lua_tostring((lua_State*) userdata,-1));
+					const char *cid = mosquitto_client_id(ed->client);
+					const char *addr = mosquitto_client_address(ed->client);
+					mosquitto_log_printf(MOSQ_LOG_INFO, "Info: client: %s %s connected", cid, addr);
+					lua_pushvalue((lua_State*) userdata,-1);
+
+					lua_newtable((lua_State*) userdata);
+
+					lua_pushnumber((lua_State*) userdata, 0);
+					lua_pushstring((lua_State*) userdata, "mosquitto");
+					lua_settable((lua_State*) userdata, -3);
+
+					lua_pushnumber((lua_State*) userdata, 1);
+					lua_pushstring((lua_State*) userdata, "CONNECTED");
+					lua_settable((lua_State*) userdata, -3);
+
+					lua_pushnumber((lua_State*) userdata, 2);
+					lua_pushstring((lua_State*) userdata, cid);
+					lua_settable((lua_State*) userdata, -3);
+
+					lua_pushnumber((lua_State*) userdata, 3);
+					lua_pushstring((lua_State*) userdata, addr);
+					lua_settable((lua_State*) userdata, -3);
+
+					lua_setglobal((lua_State*) userdata, "arg");
+
+					if(lua_pcall((lua_State*) userdata, 0, 1, 0) != 0){
+						mosquitto_log_printf(MOSQ_LOG_ERR, "Error: auth lua pcall failed: %s.", lua_tostring((lua_State*) userdata,-1));
+						return MOSQ_ERR_UNKNOWN;
+					} else {
+						if(lua_isboolean((lua_State*) userdata, -1) == 1){
+							lua_Integer ret_val = luaL_checkinteger((lua_State*) userdata, -1);
+							mosquitto_log_printf(MOSQ_LOG_DEBUG, "Debug: auth Lua handler returned: %d.", ret_val);
+						}else{
+							mosquitto_log_printf(MOSQ_LOG_DEBUG, "Debug: auth lua_pcall invalid return type");
+						}
+					}
 				}
-				lua_settop((lua_State*) userdata,1);
 #endif
-					
+
 				return MOSQ_ERR_SUCCESS;
 			}else{
 				return MOSQ_ERR_AUTH;

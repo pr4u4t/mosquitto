@@ -106,6 +106,16 @@ if (WITH_CJSON)
     endif(CJSON_FOUND)
 endif()
 
+option(WITH_LUA "Build with Lua support (optional for dynamic security plugin)?" ON)
+if (WITH_LUA)
+	FIND_PACKAGE(Lua51)
+	if (LUA51_FOUND)
+		message(STATUS ${LUA51_FOUND})
+	else()
+		message(STATUS "Optional dependency Lua not found. Some features will be disabled.")
+	endif(LUA51_FOUND)
+endif()
+
 # ========================================
 # Include projects
 # ========================================

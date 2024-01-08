@@ -7,6 +7,11 @@ if (CJSON_FOUND AND WITH_TLS)
 		${mosquitto_SOURCE_DIR}/src
 		${CJSON_INCLUDE_DIRS} )
 
+	if (LUA51_FOUND)
+		add_definitions("-DWITH_LUA")
+		set( CLIENT_INC ${CLIENT_INC} ${LUA_INCLUDE_DIR})
+	endif()
+
 	set( CLIENT_DIR ${mosquitto_BINARY_DIR}/lib ${CJSON_DIR})
 
 	include_directories(${CLIENT_INC})
@@ -32,7 +37,12 @@ if (CJSON_FOUND AND WITH_TLS)
 	)
 	set_target_properties(mosquitto_dynamic_security PROPERTIES PREFIX "")
 
-	target_link_libraries(mosquitto_dynamic_security ${CJSON_LIBRARIES} ${OPENSSL_LIBRARIES})
+	if (LUA51_FOUND)
+		target_link_libraries(mosquitto_dynamic_security ${CJSON_LIBRARIES} ${OPENSSL_LIBRARIES} ${LUA_LIBRARIES})
+	else()
+		target_link_libraries(mosquitto_dynamic_security ${CJSON_LIBRARIES} ${OPENSSL_LIBRARIES})
+	endif()
+
 	if(WIN32)
 		target_link_libraries(mosquitto_dynamic_security mosquitto)
 		install(TARGETS mosquitto_dynamic_security
