@@ -75,6 +75,7 @@ already be built. Use `make binary` to skip building the man pages, or install
   without pthread support, the library isn't guaranteed to be thread safe.
 * uthash / utlist - bundled versions of these headers are provided, disable their use with `make WITH_BUNDLED_DEPS=no`
 * xsltproc (xsltproc and docbook-xsl on Debian based systems) - only needed when building from git sources - disable with `make WITH_DOCS=no`
+* Lua 5.1 (liblua5.1-0-dev on Debian based systems) - only when compiled with `WITH_LUA=yes` for dynamic security event post processing.
 
 Equivalent options for enabling/disabling features are available when using the CMake build.
 
